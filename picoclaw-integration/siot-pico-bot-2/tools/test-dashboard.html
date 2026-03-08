@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RoboPico Test Dashboard v1.0</title>
+<style>
+  :root {
+    --bg: #0e1117;
+    --surface: #161b22;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text-dim: #8b949e;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --red: #f85149;
+    --orange: #d29922;
+    --yellow: #e3b341;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  header h1 { font-size: 16px; font-weight: 600; }
+  header h1 span { color: var(--text-dim); font-weight: 400; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    padding: 16px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .panel-header {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .panel-body { padding: 16px; }
+
+  /* Connection panel */
+  .conn-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .conn-row input {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 8px 12px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 14px;
+  }
+  .conn-row input:focus { outline: none; border-color: var(--accent); }
+
+  .status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    background: var(--red);
+  }
+  .status-dot.connected { background: var(--green); }
+  .conn-status {
+    font-size: 12px;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* Buttons */
+  button {
+    background: var(--border);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 8px 16px;
+    font-family: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  button:hover { background: #484f58; }
+  button:active { background: #6e7681; }
+  button.primary { background: #1f6feb; border-color: #1f6feb; }
+  button.primary:hover { background: #388bfd; }
+  button.danger { background: #da3633; border-color: #da3633; }
+  button.danger:hover { background: #f85149; }
+  button.success { background: #238636; border-color: #238636; }
+  button.success:hover { background: #2ea043; }
+  button.active-cmd {
+    background: var(--accent) !important;
+    border-color: var(--accent) !important;
+    color: #000 !important;
+  }
+
+  /* Telemetry */
+  .telem-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .telem-item { margin-bottom: 4px; }
+  .telem-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+  }
+  .telem-value {
+    font-size: 20px;
+    font-weight: 600;
+  }
+  .telem-bar-wrap {
+    background: var(--bg);
+    border-radius: 3px;
+    height: 6px;
+    margin-top: 4px;
+    overflow: hidden;
+  }
+  .telem-bar {
+    height: 100%;
+    border-radius: 3px;
+    background: var(--accent);
+    transition: width 0.2s;
+  }
+  .telem-bar.warn { background: var(--orange); }
+  .telem-bar.danger { background: var(--red); }
+
+  .compass {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    position: relative;
+    display: inline-block;
+    margin-top: 4px;
+  }
+  .compass-needle {
+    position: absolute;
+    width: 2px;
+    height: 24px;
+    background: var(--red);
+    left: 50%;
+    top: 6px;
+    transform-origin: bottom center;
+    transform: translateX(-50%) rotate(0deg);
+    transition: transform 0.3s;
+    border-radius: 1px;
+  }
+  .compass-center {
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--text);
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  /* Poll slider */
+  .poll-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .poll-row label { font-size: 12px; color: var(--text-dim); }
+  .poll-row input[type=range] { flex: 1; accent-color: var(--accent); }
+  .poll-row .poll-val { font-size: 12px; min-width: 50px; }
+
+  /* Motor controls */
+  .motor-pad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    max-width: 260px;
+    margin: 0 auto 16px;
+  }
+  .motor-pad button {
+    padding: 14px 8px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .rpm-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .rpm-row label { font-size: 12px; color: var(--text-dim); white-space: nowrap; }
+  .rpm-row input[type=range] { flex: 1; accent-color: var(--accent); }
+  .rpm-row .rpm-val { font-size: 14px; font-weight: 600; min-width: 40px; }
+
+  /* Code editor */
+  .code-area {
+    width: 100%;
+    min-height: 120px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13px;
+    padding: 10px;
+    resize: vertical;
+    margin-bottom: 10px;
+  }
+  .code-area:focus { outline: none; border-color: var(--accent); }
+  .code-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .code-controls select {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13px;
+    padding: 8px;
+    flex: 1;
+  }
+  .code-controls select:focus { outline: none; border-color: var(--accent); }
+  .response-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 10px;
+    font-size: 12px;
+    max-height: 150px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  .response-ok { color: var(--green); }
+  .response-err { color: var(--red); }
+
+  /* Safety panel */
+  .safety-btns {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .safety-log {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 10px;
+    font-size: 12px;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+  .safety-log .log-entry { margin-bottom: 4px; }
+  .log-time { color: var(--text-dim); }
+  .log-pass { color: var(--green); }
+  .log-fail { color: var(--red); }
+  .log-info { color: var(--accent); }
+
+  .full-width { grid-column: 1 / -1; }
+
+  /* Proximity warning */
+  .prox-warn {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-left: 6px;
+  }
+  .prox-warn.close { background: var(--red); color: #fff; }
+  .prox-warn.mid { background: var(--orange); color: #000; }
+
+  /* IR sensor visual */
+  .ir-bars {
+    display: flex;
+    gap: 4px;
+    margin-top: 4px;
+  }
+  .ir-bar {
+    flex: 1;
+    height: 20px;
+    background: var(--bg);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .ir-bar-fill {
+    height: 100%;
+    background: var(--accent);
+    transition: width 0.2s;
+  }
+
+  /* Color swatch */
+  .color-swatch {
+    width: 40px;
+    height: 40px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 8px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>RoboPico Test Dashboard <span>v1.0</span></h1>
+  <div class="conn-status">
+    <span class="status-dot" id="statusDot"></span>
+    <span id="connLabel">Disconnected</span>
+  </div>
+</header>
+
+<div class="grid">
+
+  <!-- Connection Panel -->
+  <div class="panel">
+    <div class="panel-header">Connection</div>
+    <div class="panel-body">
+      <div class="conn-row">
+        <input type="text" id="roverIp" value="192.168.4.1" placeholder="Rover IP address">
+        <button id="connectBtn" class="primary" onclick="toggleConnection()">Connect</button>
+      </div>
+      <div id="connInfo" style="font-size:12px; color:var(--text-dim);">
+        Connect to <strong>RoboPico-XXXX</strong> WiFi, then click Connect.
+      </div>
+    </div>
+  </div>
+
+  <!-- Motor Controls -->
+  <div class="panel">
+    <div class="panel-header">Motor Controls</div>
+    <div class="panel-body">
+      <div class="motor-pad">
+        <div></div>
+        <button id="btnFwd" onclick="sendMotor('forward')">FWD</button>
+        <div></div>
+        <button id="btnLeft" onclick="sendMotor('turn_left')">LEFT</button>
+        <button id="btnStop" class="danger" onclick="sendMotor('stop')">STOP</button>
+        <button id="btnRight" onclick="sendMotor('turn_right')">RIGHT</button>
+        <div></div>
+        <button id="btnBwd" onclick="sendMotor('backward')">BWD</button>
+        <div></div>
+      </div>
+      <div class="rpm-row">
+        <label>RPM:</label>
+        <input type="range" id="rpmSlider" min="10" max="60" value="60" oninput="updateRpmLabel()">
+        <span class="rpm-val" id="rpmVal">60</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Telemetry Display -->
+  <div class="panel full-width">
+    <div class="panel-header">Live Telemetry</div>
+    <div class="panel-body">
+      <div class="telem-grid">
+        <!-- RPM Left -->
+        <div class="telem-item">
+          <div class="telem-label">RPM Left</div>
+          <div class="telem-value" id="rpmLeft">--</div>
+          <div class="telem-bar-wrap"><div class="telem-bar" id="rpmLeftBar" style="width:0%"></div></div>
+        </div>
+        <!-- RPM Right -->
+        <div class="telem-item">
+          <div class="telem-label">RPM Right</div>
+          <div class="telem-value" id="rpmRight">--</div>
+          <div class="telem-bar-wrap"><div class="telem-bar" id="rpmRightBar" style="width:0%"></div></div>
+        </div>
+        <!-- Heading -->
+        <div class="telem-item">
+          <div class="telem-label">Heading</div>
+          <div style="display:flex; align-items:center; gap:12px;">
+            <div class="telem-value" id="heading">--</div>
+            <div class="compass">
+              <div class="compass-needle" id="compassNeedle"></div>
+              <div class="compass-center"></div>
+            </div>
+          </div>
+        </div>
+        <!-- Distance -->
+        <div class="telem-item">
+          <div class="telem-label">Ultrasonic Distance</div>
+          <div>
+            <span class="telem-value" id="distance">--</span>
+            <span class="telem-value" style="font-size:13px; color:var(--text-dim)"> cm</span>
+            <span class="prox-warn" id="proxWarn" style="display:none"></span>
+          </div>
+          <div class="telem-bar-wrap"><div class="telem-bar" id="distBar" style="width:0%"></div></div>
+        </div>
+        <!-- IR Sensors -->
+        <div class="telem-item">
+          <div class="telem-label">IR Sensors (raw)</div>
+          <div class="telem-value" id="irValues">--</div>
+          <div class="ir-bars" id="irBars"></div>
+        </div>
+        <!-- Color Sensor -->
+        <div class="telem-item">
+          <div class="telem-label">Color Sensor</div>
+          <div style="display:flex; align-items:center;">
+            <div class="color-swatch" id="colorSwatch" style="background:#000"></div>
+            <span class="telem-value" id="colorValues" style="font-size:14px">--</span>
+          </div>
+        </div>
+        <!-- Tick Counter -->
+        <div class="telem-item">
+          <div class="telem-label">Tick Counter</div>
+          <div class="telem-value" id="tickCount">--</div>
+        </div>
+      </div>
+
+      <div class="poll-row">
+        <label>Poll interval:</label>
+        <input type="range" id="pollSlider" min="100" max="2000" step="100" value="500" oninput="updatePollInterval()">
+        <span class="poll-val" id="pollVal">500ms</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Code Editor -->
+  <div class="panel">
+    <div class="panel-header">Code Editor</div>
+    <div class="panel-body">
+      <div class="code-controls">
+        <select id="presetSelect" onchange="loadPreset()">
+          <option value="">-- Presets --</option>
+          <option value="square">Drive Square</option>
+          <option value="status">Read Status</option>
+          <option value="speed">Speed Test</option>
+          <option value="timeout">Safety: Motor Timeout</option>
+        </select>
+        <button class="success" onclick="runCode()">Run</button>
+      </div>
+      <textarea class="code-area" id="codeArea" placeholder="Enter Python code...">robot.forward(60)</textarea>
+      <div class="panel-header" style="border-bottom:none; padding:8px 0 4px 0;">Response</div>
+      <div class="response-box" id="codeResponse">No response yet.</div>
+    </div>
+  </div>
+
+  <!-- Safety Test Panel -->
+  <div class="panel">
+    <div class="panel-header">Safety Tests</div>
+    <div class="panel-body">
+      <div class="safety-btns">
+        <button class="danger" id="btnTimeout" onclick="testMotorTimeout()">Test Motor Timeout (30s)</button>
+        <button class="danger" onclick="testSandbox()">Test Sandbox (import)</button>
+        <button onclick="clearSafetyLog()">Clear Log</button>
+      </div>
+      <div class="safety-log" id="safetyLog">
+        <div class="log-entry"><span class="log-info">Ready for safety tests.</span></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// --- State ---
+let connected = false;
+let pollTimer = null;
+let pollInterval = 500;
+let activeCmd = null;
+let timeoutTestTimer = null;
+let timeoutTestStart = 0;
+
+const BASE = () => `http://${document.getElementById('roverIp').value}`;
+
+// --- Connection ---
+async function toggleConnection() {
+  if (connected) {
+    disconnect();
+    return;
+  }
+  const btn = document.getElementById('connectBtn');
+  btn.textContent = 'Connecting...';
+  btn.disabled = true;
+  try {
+    const resp = await fetchWithTimeout(`${BASE()}/status`, { method: 'GET' }, 3000);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    connected = true;
+    setConnectionUI(true);
+    document.getElementById('connInfo').textContent =
+      `Connected. Tick: ${data.tick}`;
+    startPolling();
+  } catch (e) {
+    setConnectionUI(false);
+    document.getElementById('connInfo').innerHTML =
+      `<span style="color:var(--red)">Failed: ${esc(e.message)}</span>`;
+  }
+  btn.disabled = false;
+}
+
+function disconnect() {
+  connected = false;
+  stopPolling();
+  setConnectionUI(false);
+  document.getElementById('connInfo').textContent = 'Disconnected.';
+}
+
+function setConnectionUI(on) {
+  const dot = document.getElementById('statusDot');
+  const label = document.getElementById('connLabel');
+  const btn = document.getElementById('connectBtn');
+  dot.className = on ? 'status-dot connected' : 'status-dot';
+  label.textContent = on ? 'Connected' : 'Disconnected';
+  btn.textContent = on ? 'Disconnect' : 'Connect';
+  btn.className = on ? 'danger' : 'primary';
+}
+
+// --- Polling ---
+function startPolling() {
+  stopPolling();
+  pollTelemetry();
+  pollTimer = setInterval(pollTelemetry, pollInterval);
+}
+
+function stopPolling() {
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+}
+
+function updatePollInterval() {
+  pollInterval = parseInt(document.getElementById('pollSlider').value);
+  document.getElementById('pollVal').textContent = pollInterval + 'ms';
+  if (connected) startPolling();
+}
+
+async function pollTelemetry() {
+  if (!connected) return;
+  try {
+    const resp = await fetchWithTimeout(`${BASE()}/status`, { method: 'GET' }, pollInterval + 1000);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const d = await resp.json();
+    updateTelemetry(d);
+  } catch (e) {
+    // Silently skip on transient errors during polling
+  }
+}
+
+// --- Telemetry UI ---
+function updateTelemetry(d) {
+  // RPMs
+  const maxRpm = 80;
+  document.getElementById('rpmLeft').textContent = d.rpm_left.toFixed(1);
+  document.getElementById('rpmRight').textContent = d.rpm_right.toFixed(1);
+  document.getElementById('rpmLeftBar').style.width =
+    Math.min(100, (Math.abs(d.rpm_left) / maxRpm) * 100) + '%';
+  document.getElementById('rpmRightBar').style.width =
+    Math.min(100, (Math.abs(d.rpm_right) / maxRpm) * 100) + '%';
+
+  // Heading
+  const headingNorm = ((d.heading % 360) + 360) % 360;
+  document.getElementById('heading').textContent = headingNorm.toFixed(1) + '\u00B0';
+  document.getElementById('compassNeedle').style.transform =
+    `translateX(-50%) rotate(${headingNorm}deg)`;
+
+  // Distance
+  const dist = d.distance_cm;
+  const distEl = document.getElementById('distance');
+  const proxEl = document.getElementById('proxWarn');
+  const distBar = document.getElementById('distBar');
+  if (dist < 0) {
+    distEl.textContent = 'N/A';
+    proxEl.style.display = 'none';
+    distBar.style.width = '0%';
+    distBar.className = 'telem-bar';
+  } else {
+    distEl.textContent = dist.toFixed(1);
+    const pct = Math.min(100, (dist / 200) * 100);
+    distBar.style.width = pct + '%';
+    if (dist < 10) {
+      proxEl.textContent = 'CLOSE';
+      proxEl.className = 'prox-warn close';
+      proxEl.style.display = 'inline-block';
+      distBar.className = 'telem-bar danger';
+    } else if (dist < 30) {
+      proxEl.textContent = 'NEAR';
+      proxEl.className = 'prox-warn mid';
+      proxEl.style.display = 'inline-block';
+      distBar.className = 'telem-bar warn';
+    } else {
+      proxEl.style.display = 'none';
+      distBar.className = 'telem-bar';
+    }
+  }
+
+  // IR sensors
+  const ir = d.ir || [];
+  document.getElementById('irValues').textContent = ir.join(', ');
+  const irBarsEl = document.getElementById('irBars');
+  irBarsEl.innerHTML = '';
+  ir.forEach(v => {
+    const pct = Math.min(100, (v / 65535) * 100);
+    const bar = document.createElement('div');
+    bar.className = 'ir-bar';
+    bar.innerHTML = `<div class="ir-bar-fill" style="width:${pct}%"></div>`;
+    irBarsEl.appendChild(bar);
+  });
+
+  // Color sensor
+  const c = d.color || {};
+  const colorEl = document.getElementById('colorValues');
+  const swatchEl = document.getElementById('colorSwatch');
+  if ('r' in c && 'g' in c && 'b' in c) {
+    // TCS34725 RGBC mode — scale 16-bit to 8-bit for display
+    const scale = c.c > 0 ? 255 / c.c : 0;
+    const r8 = Math.min(255, Math.round(c.r * scale));
+    const g8 = Math.min(255, Math.round(c.g * scale));
+    const b8 = Math.min(255, Math.round(c.b * scale));
+    swatchEl.style.background = `rgb(${r8},${g8},${b8})`;
+    colorEl.textContent = `R:${c.r} G:${c.g} B:${c.b} C:${c.c}`;
+  } else if ('lux' in c) {
+    const l8 = Math.min(255, Math.round((c.lux / 65535) * 255));
+    swatchEl.style.background = `rgb(${l8},${l8},${l8})`;
+    colorEl.textContent = `Lux: ${c.lux}`;
+  } else {
+    swatchEl.style.background = '#000';
+    colorEl.textContent = '--';
+  }
+
+  // Tick
+  document.getElementById('tickCount').textContent = d.tick;
+}
+
+// --- Motor Controls ---
+const motorBtnMap = {
+  forward: 'btnFwd',
+  backward: 'btnBwd',
+  turn_left: 'btnLeft',
+  turn_right: 'btnRight',
+  stop: 'btnStop',
+};
+
+async function sendMotor(cmd) {
+  if (!connected) return;
+  const rpm = parseInt(document.getElementById('rpmSlider').value);
+  let code;
+  if (cmd === 'stop') {
+    code = 'robot.stop()';
+  } else if (cmd === 'turn_left' || cmd === 'turn_right') {
+    code = `robot.${cmd}(${rpm})`;
+  } else {
+    code = `robot.${cmd}(${rpm})`;
+  }
+  // Highlight active button
+  Object.values(motorBtnMap).forEach(id =>
+    document.getElementById(id).classList.remove('active-cmd'));
+  document.getElementById(motorBtnMap[cmd]).classList.add('active-cmd');
+  activeCmd = cmd;
+
+  try {
+    await postExec(code);
+  } catch (e) {
+    // will be shown in code response if needed
+  }
+}
+
+function updateRpmLabel() {
+  document.getElementById('rpmVal').textContent =
+    document.getElementById('rpmSlider').value;
+}
+
+// --- Code Editor ---
+const PRESETS = {
+  square: `# Drive a square: 4x (forward 1s + turn right 1s)
+import time
+
+for i in range(4):
+    robot.forward(40)
+    time.sleep(1)
+    robot.turn_right(40)
+    time.sleep(0.6)
+    robot.stop()
+    time.sleep(0.3)
+
+robot.stop()`,
+
+  status: `# Read and print current sensor status
+s = robot.status()
+print(s)`,
+
+  speed: `# Speed test: forward at 20, 40, 60 RPM
+import time
+
+for rpm in [20, 40, 60]:
+    robot.forward(rpm)
+    time.sleep(1.5)
+
+robot.stop()`,
+
+  timeout: `# Safety test: forward at 60 RPM with no stop
+# Motor timeout should auto-brake at 30s
+robot.forward(60)`,
+};
+
+function loadPreset() {
+  const sel = document.getElementById('presetSelect').value;
+  if (sel && PRESETS[sel]) {
+    document.getElementById('codeArea').value = PRESETS[sel];
+  }
+}
+
+async function runCode() {
+  const code = document.getElementById('codeArea').value.trim();
+  if (!code) return;
+  if (!connected) {
+    showCodeResponse(false, 'Not connected to rover.');
+    return;
+  }
+  try {
+    const result = await postExec(code);
+    showCodeResponse(result.ok, result.ok ? 'OK' : result.error);
+  } catch (e) {
+    showCodeResponse(false, e.message);
+  }
+}
+
+function showCodeResponse(ok, msg) {
+  const el = document.getElementById('codeResponse');
+  el.className = 'response-box ' + (ok ? 'response-ok' : 'response-err');
+  el.textContent = msg;
+}
+
+// --- Safety Tests ---
+async function testSandbox() {
+  if (!connected) {
+    safetyLog('fail', 'Not connected.');
+    return;
+  }
+  safetyLog('info', 'Sending "import os" to test sandbox...');
+  try {
+    const result = await postExec('import os');
+    if (!result.ok && result.error && result.error.toLowerCase().includes('import')) {
+      safetyLog('pass', `Sandbox PASS: "${result.error}"`);
+    } else {
+      safetyLog('fail', `Sandbox FAIL: import was not blocked! Response: ${JSON.stringify(result)}`);
+    }
+  } catch (e) {
+    safetyLog('fail', `Request failed: ${e.message}`);
+  }
+}
+
+async function testMotorTimeout() {
+  if (!connected) {
+    safetyLog('fail', 'Not connected.');
+    return;
+  }
+  const btn = document.getElementById('btnTimeout');
+  btn.disabled = true;
+  btn.textContent = 'Running... 0s';
+  safetyLog('info', 'Sending robot.forward(60) — no stop command.');
+  safetyLog('info', 'Monitoring RPM for auto-brake (expecting ~30s)...');
+
+  try {
+    await postExec('robot.forward(60)');
+  } catch (e) {
+    safetyLog('fail', `Failed to send forward: ${e.message}`);
+    btn.disabled = false;
+    btn.textContent = 'Test Motor Timeout (30s)';
+    return;
+  }
+
+  timeoutTestStart = Date.now();
+  let stoppedAt = null;
+
+  timeoutTestTimer = setInterval(async () => {
+    const elapsed = ((Date.now() - timeoutTestStart) / 1000).toFixed(0);
+    btn.textContent = `Running... ${elapsed}s`;
+
+    try {
+      const resp = await fetchWithTimeout(`${BASE()}/status`, { method: 'GET' }, 2000);
+      const d = await resp.json();
+      const bothZero = Math.abs(d.rpm_left) < 0.1 && Math.abs(d.rpm_right) < 0.1;
+
+      if (bothZero && parseFloat(elapsed) > 5 && !stoppedAt) {
+        stoppedAt = parseFloat(elapsed);
+        clearInterval(timeoutTestTimer);
+        timeoutTestTimer = null;
+        if (stoppedAt >= 25 && stoppedAt <= 40) {
+          safetyLog('pass', `Motor timeout PASS: Motors stopped after ${stoppedAt}s (expected ~30s)`);
+        } else {
+          safetyLog('fail', `Motor timeout FAIL: Motors stopped after ${stoppedAt}s (expected 25-40s)`);
+        }
+        btn.disabled = false;
+        btn.textContent = 'Test Motor Timeout (30s)';
+      }
+    } catch (e) {
+      // transient — keep polling
+    }
+
+    // Abort after 45s
+    if (parseFloat(elapsed) > 45 && !stoppedAt) {
+      clearInterval(timeoutTestTimer);
+      timeoutTestTimer = null;
+      safetyLog('fail', 'Motor timeout FAIL: Motors did not stop within 45s.');
+      btn.disabled = false;
+      btn.textContent = 'Test Motor Timeout (30s)';
+    }
+  }, 1000);
+}
+
+function safetyLog(type, msg) {
+  const log = document.getElementById('safetyLog');
+  const time = new Date().toLocaleTimeString();
+  const cls = type === 'pass' ? 'log-pass' : type === 'fail' ? 'log-fail' : 'log-info';
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  entry.innerHTML = `<span class="log-time">[${time}]</span> <span class="${cls}">${esc(msg)}</span>`;
+  log.appendChild(entry);
+  log.scrollTop = log.scrollHeight;
+}
+
+function clearSafetyLog() {
+  document.getElementById('safetyLog').innerHTML = '';
+}
+
+// --- Helpers ---
+async function postExec(code) {
+  const resp = await fetchWithTimeout(`${BASE()}/exec`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code }),
+  }, 5000);
+  return await resp.json();
+}
+
+function fetchWithTimeout(url, opts, ms) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  return fetch(url, { ...opts, signal: controller.signal })
+    .finally(() => clearTimeout(timer));
+}
+
+function esc(s) {
+  const el = document.createElement('span');
+  el.textContent = s;
+  return el.innerHTML;
+}
+</script>
+</body>
+</html>

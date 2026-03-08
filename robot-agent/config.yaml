@@ -1,0 +1,34 @@
+transport:
+  type: tcp
+  tcp:
+    host: rp2040.local
+    port: 8765
+    connect_timeout: 3.0
+    read_timeout: 1.0
+  serial:
+    port: /dev/ttyACM0
+    baudrate: 115200
+    timeout: 1.0
+logging:
+  telemetry_log: ./logs/telemetry.jsonl
+  raw_log: ./logs/raw_link.log
+agent:
+  dry_run: false
+  heartbeat_interval_sec: 1.0
+  deadman_timeout_sec: 2.0
+  reconnect_delay_sec: 2.0
+  required_telemetry_fields:
+    - time_ms
+    - mode
+    - heading_deg
+    - left_ticks
+    - right_ticks
+    - battery_v
+    - fault_code
+firmware_reference:
+  pid_defaults:
+    kp: 1.5
+    ki: 0.8
+    kd: 0.05
+    loop_hz: 20
+    target_rpm: 60
