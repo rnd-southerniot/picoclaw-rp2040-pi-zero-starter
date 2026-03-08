@@ -11,6 +11,7 @@ except Exception:  # pragma: no cover
 
 from protocol import REQUIRED_TELEMETRY_FIELDS, decode_line, encode_command, telemetry_missing_fields
 from telemetry_logger import TelemetryLogger
+from discovery import discover_tcp_host
 
 
 class SerialBridge:
@@ -35,6 +36,11 @@ class SerialBridge:
         serial_port: str = "/dev/ttyACM0",
         serial_baudrate: int = 115200,
         serial_timeout: float = 1.0,
+        discovery_enabled: bool = False,
+        discovery_candidates: Optional[List[str]] = None,
+        discovery_subnet_scan: bool = False,
+        discovery_subnet_prefix: Optional[str] = None,
+        discovery_cache_file: Optional[str] = None,
     ):
         self.logger = logger
         self.dry_run = dry_run
@@ -50,6 +56,12 @@ class SerialBridge:
         self.serial_port = serial_port
         self.serial_baudrate = int(serial_baudrate)
         self.serial_timeout = float(serial_timeout)
+        self.discovery_enabled = discovery_enabled
+        self.discovery_candidates = discovery_candidates or []
+        self.discovery_subnet_scan = discovery_subnet_scan
+        self.discovery_subnet_prefix = discovery_subnet_prefix
+        self.discovery_cache_file = discovery_cache_file
+        self.current_host = self.tcp_host
 
         self.ser = None
         self.sock = None
@@ -59,8 +71,19 @@ class SerialBridge:
         if self.dry_run:
             return
         if self.transport_type == "tcp":
+            resolved_host = discover_tcp_host(
+                configured_host=self.tcp_host,
+                port=self.tcp_port,
+                connect_timeout=self.tcp_connect_timeout,
+                enabled=self.discovery_enabled or self.tcp_host.lower() == "auto",
+                candidates=self.discovery_candidates,
+                subnet_scan=self.discovery_subnet_scan,
+                subnet_prefix=self.discovery_subnet_prefix,
+                cache_file=self.discovery_cache_file,
+            )
+            self.current_host = resolved_host
             self.sock = socket.create_connection(
-                (self.tcp_host, self.tcp_port), timeout=self.tcp_connect_timeout
+                (resolved_host, self.tcp_port), timeout=self.tcp_connect_timeout
             )
             self.sock.settimeout(self.tcp_read_timeout)
             return

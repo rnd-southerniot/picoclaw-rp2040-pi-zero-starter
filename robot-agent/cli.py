@@ -31,8 +31,17 @@ def normalize_config_paths(cfg: Dict[str, Any], config_path: str) -> Dict[str, A
             candidate = Path(value)
             if not candidate.is_absolute():
                 logging_cfg[key] = str(base / candidate)
+
+    discovery_cfg = dict(cfg.get("discovery", {}))
+    cache_file = discovery_cfg.get("cache_file")
+    if isinstance(cache_file, str):
+        candidate = Path(cache_file)
+        if not candidate.is_absolute():
+            discovery_cfg["cache_file"] = str(base / candidate)
+
     normalized = dict(cfg)
     normalized["logging"] = logging_cfg
+    normalized["discovery"] = discovery_cfg
     return normalized
 
 
@@ -45,6 +54,7 @@ def build_bridge_kwargs(cfg: Dict[str, Any], dry_run: bool) -> Dict[str, Any]:
     transport_type = str(transport_cfg.get("type", "tcp")).lower()
     tcp_cfg = dict(transport_cfg.get("tcp", {}))
     serial_cfg = dict(transport_cfg.get("serial", cfg.get("serial", {})))
+    discovery_cfg = dict(cfg.get("discovery", {}))
 
     return {
         "logger": TelemetryLogger(cfg["logging"]["telemetry_log"], cfg["logging"]["raw_log"]),
@@ -58,6 +68,11 @@ def build_bridge_kwargs(cfg: Dict[str, Any], dry_run: bool) -> Dict[str, Any]:
         "serial_port": serial_cfg.get("port", "/dev/ttyACM0"),
         "serial_baudrate": serial_cfg.get("baudrate", 115200),
         "serial_timeout": serial_cfg.get("timeout", 1.0),
+        "discovery_enabled": bool(discovery_cfg.get("enabled", True)),
+        "discovery_candidates": list(discovery_cfg.get("candidates", [])),
+        "discovery_subnet_scan": bool(discovery_cfg.get("subnet_scan", True)),
+        "discovery_subnet_prefix": discovery_cfg.get("subnet_prefix"),
+        "discovery_cache_file": discovery_cfg.get("cache_file"),
     }
 
 
@@ -90,6 +105,18 @@ def build_parser() -> argparse.ArgumentParser:
     p_drive.add_argument("--meters", type=float, required=True)
     p_drive.add_argument("--speed", type=float, required=True)
 
+    p_led = subparsers.add_parser("SET_LED", aliases=["set_led"])
+    p_led.add_argument(
+        "--color",
+        type=str,
+        required=True,
+        choices=["off", "red", "green", "blue", "yellow", "cyan", "magenta", "white"],
+    )
+
+    p_sound = subparsers.add_parser("PLAY_SOUND", aliases=["play_sound"])
+    p_sound.add_argument("--name", type=str, required=True, choices=["ding_dong"])
+
+    subparsers.add_parser("GET_BUTTONS", aliases=["get_buttons"])
     subparsers.add_parser("MONITOR", aliases=["monitor"])
     return parser
 
@@ -105,6 +132,12 @@ def command_payload(args: argparse.Namespace) -> Dict[str, Any]:
         return {"cmd": "TURN_TO", "heading": args.heading}
     if args.command == "DRIVE_DIST":
         return {"cmd": "DRIVE_DIST", "meters": args.meters, "speed": args.speed}
+    if args.command == "SET_LED":
+        return {"cmd": "SET_LED", "color": args.color}
+    if args.command == "PLAY_SOUND":
+        return {"cmd": "PLAY_SOUND", "name": args.name}
+    if args.command == "GET_BUTTONS":
+        return {"cmd": "GET_BUTTONS"}
     raise ValueError(f"unsupported command: {args.command}")
 
 
@@ -124,6 +157,31 @@ def wait_for_message(bridge: SerialBridge, timeout_sec: float) -> int:
             print(msg)
             return 0
         time.sleep(0.05)
+    return 1
+
+
+def wait_for_command_reply(bridge: SerialBridge, sent_cmd: str, timeout_sec: float) -> int:
+    if bridge.dry_run:
+        print({"ok": True, "type": "ack", "cmd": sent_cmd, "dry_run": True})
+        return 0
+
+    deadline = time.monotonic() + timeout_sec
+    while time.monotonic() < deadline:
+        msg = bridge.read_one()
+        if msg is None:
+            time.sleep(0.05)
+            continue
+
+        msg_type = str(msg.get("type", "")).lower()
+        msg_cmd = str(msg.get("cmd", "")).upper()
+        if msg_type in {"ack", "err"} and msg_cmd == sent_cmd:
+            print(msg)
+            return 0
+
+        if sent_cmd == "GET_STATE" and msg_type in {"", "telemetry"}:
+            print(msg)
+            return 0
+
     return 1
 
 
@@ -162,11 +220,8 @@ def main() -> int:
         try:
             payload = command_payload(args)
             bridge.send(payload)
-            msg = bridge.read_one()
-            if msg is not None:
-                print(msg)
-                return 0
-            return wait_for_message(bridge, timeout_sec=args.response_timeout)
+            sent_cmd = str(payload["cmd"]).upper()
+            return wait_for_command_reply(bridge, sent_cmd=sent_cmd, timeout_sec=args.response_timeout)
         finally:
             bridge.close()
 

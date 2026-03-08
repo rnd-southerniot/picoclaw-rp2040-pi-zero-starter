@@ -3,7 +3,17 @@ from __future__ import annotations
 import json
 from typing import Any, Dict, List, Mapping, Optional
 
-SUPPORTED_COMMANDS = {"PING", "GET_STATE", "STOP", "HEARTBEAT", "TURN_TO", "DRIVE_DIST"}
+SUPPORTED_COMMANDS = {
+    "PING",
+    "GET_STATE",
+    "STOP",
+    "HEARTBEAT",
+    "TURN_TO",
+    "DRIVE_DIST",
+    "SET_LED",
+    "PLAY_SOUND",
+    "GET_BUTTONS",
+}
 MOTION_COMMANDS = {"TURN_TO", "DRIVE_DIST"}
 REQUIRED_TELEMETRY_FIELDS = (
     "time_ms",
@@ -36,6 +46,14 @@ def validate_command_payload(payload: Mapping[str, Any]) -> Dict[str, Any]:
             raise ValueError("DRIVE_DIST requires 'meters' and 'speed'")
         validated["meters"] = float(obj["meters"])
         validated["speed"] = float(obj["speed"])
+    elif cmd == "SET_LED":
+        if "color" not in obj:
+            raise ValueError("SET_LED requires 'color'")
+        validated["color"] = str(obj["color"]).lower()
+    elif cmd == "PLAY_SOUND":
+        if "name" not in obj:
+            raise ValueError("PLAY_SOUND requires 'name'")
+        validated["name"] = str(obj["name"]).lower()
 
     return validated
 

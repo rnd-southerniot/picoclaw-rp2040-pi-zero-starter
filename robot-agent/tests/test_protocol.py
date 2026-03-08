@@ -25,6 +25,22 @@ class ProtocolTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_command_payload({"cmd": "DRIVE_DIST", "meters": 1.0})
 
+    def test_validate_set_led_requires_color(self) -> None:
+        with self.assertRaises(ValueError):
+            validate_command_payload({"cmd": "SET_LED"})
+
+    def test_validate_play_sound_requires_name(self) -> None:
+        with self.assertRaises(ValueError):
+            validate_command_payload({"cmd": "PLAY_SOUND"})
+
+    def test_validate_set_led_normalizes_color(self) -> None:
+        payload = validate_command_payload({"cmd": "SET_LED", "color": "GREEN"})
+        self.assertEqual(payload["color"], "green")
+
+    def test_validate_play_sound_normalizes_name(self) -> None:
+        payload = validate_command_payload({"cmd": "PLAY_SOUND", "name": "DING_DONG"})
+        self.assertEqual(payload["name"], "ding_dong")
+
     def test_decode_line_rejects_non_object(self) -> None:
         with self.assertRaises(ValueError):
             decode_line("[1,2,3]")

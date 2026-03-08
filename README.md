@@ -11,7 +11,9 @@ Starter repository for a safe-by-default Raspberry Pi Zero gateway that communic
 ## Repository Layout
 
 - `robot-agent/` Python bridge + protocol parser + CLI + logs config
+- `robot-agent/web_app.py` web UI + natural-language command endpoint
 - `firmware-rp2040/` protocol contract and firmware pseudocode scaffold
+- `firmware-rp2040/micropython/` flashable Pico W TCP firmware with motor + LED + buzzer + button handlers
 - `pi-zero/` first-boot and bootstrap scripts for the Pi
 - `host-tools/` LAN discovery and SSH helpers
 - `systemd/` service to run the bridge on boot
@@ -76,6 +78,9 @@ Non-motion commands:
 ../.venv/bin/python cli.py PING
 ../.venv/bin/python cli.py GET_STATE
 ../.venv/bin/python cli.py STOP
+../.venv/bin/python cli.py SET_LED --color green
+../.venv/bin/python cli.py PLAY_SOUND --name ding_dong
+../.venv/bin/python cli.py GET_BUTTONS
 ```
 
 Motion commands require explicit opt-in:
@@ -83,6 +88,32 @@ Motion commands require explicit opt-in:
 ../.venv/bin/python cli.py --allow-motion TURN_TO --heading 90
 ../.venv/bin/python cli.py --allow-motion DRIVE_DIST --meters 0.5 --speed 0.15
 ```
+
+## Web App (Natural Language Control)
+
+Start manually:
+```bash
+cd /opt/picoclaw-rp2040/robot-agent
+../.venv/bin/python web_app.py --config config.yaml
+```
+
+Open from LAN:
+```text
+http://<pi-ip>:8080
+```
+
+Example natural-language commands:
+- `ping`
+- `get state`
+- `stop`
+- `turn to 90`
+- `drive 0.5 meters speed 0.2 mps`
+- `play ding dong`
+- `turn on green light`
+- `light off`
+- `button state`
+
+Motion commands require `Allow motion commands` checked in the UI.
 
 ## Dry-Run Smoke (No Hardware)
 
@@ -105,6 +136,7 @@ Configured in `robot-agent/config.yaml`:
 - parsed telemetry JSONL: `robot-agent/logs/telemetry.jsonl`
 
 Missing required telemetry fields are logged as warnings.
+Telemetry also includes peripheral state fields (`led_color`, `button_a_pressed`, `button_b_pressed`, `sound_active`) when provided by firmware.
 
 ## systemd Service
 
@@ -117,6 +149,9 @@ sudo systemctl status robot-agent.service
 sudo journalctl -u robot-agent.service -f
 ```
 
+This service runs the web app and keeps the bridge link active in the background.
+RP2040 firmware supports multi-client TCP, so CLI and web app can run together.
+
 ## Firmware Contract
 
 See `firmware-rp2040/PROTOCOL.md` for:
@@ -124,10 +159,10 @@ See `firmware-rp2040/PROTOCOL.md` for:
 - deadman heartbeat timeout (`2.0 s` default)
 - STOP preemption and fail-closed packet rules
 
-See `firmware-rp2040/PINOUT.md` for the default RP2040 pin mapping (Robo Pico aligned, IMU on `GP16/GP17`) and tested PID defaults.
+See `firmware-rp2040/PINOUT.md` for RP2040 pin mapping, tested PID defaults, and override options in `firmware-rp2040/micropython/wifi_config.py`.
 
 ## Next Steps
 
-1. Add periodic Pi-side `HEARTBEAT` scheduling in monitor mode.
-2. Extend command set with mission-level primitives while preserving RP2040 authority.
+1. Add more sound/LED patterns and expose named presets in `PLAY_SOUND` and `SET_LED`.
+2. Add mission-level primitives while preserving RP2040 authority for any motion safety checks.
 3. Implement adapters under `picoclaw-integration/` without coupling bring-up path to cloud services.

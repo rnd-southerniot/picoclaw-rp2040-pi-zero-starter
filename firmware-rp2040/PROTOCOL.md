@@ -65,6 +65,27 @@ Required fields:
 - `meters` (float)
 - `speed` (float, m/s)
 
+### `SET_LED`
+```json
+{"cmd":"SET_LED","color":"green"}
+```
+
+Required fields:
+- `color` (string): `off|red|green|blue|yellow|cyan|magenta|white`
+
+### `PLAY_SOUND`
+```json
+{"cmd":"PLAY_SOUND","name":"ding_dong"}
+```
+
+Required fields:
+- `name` (string): currently supports `ding_dong`
+
+### `GET_BUTTONS`
+```json
+{"cmd":"GET_BUTTONS"}
+```
+
 ## RP2040 Responses / Telemetry (RP2040 -> Pi)
 
 ### Acknowledgement / status examples
@@ -72,6 +93,9 @@ Required fields:
 {"type":"ack","cmd":"PING","ok":true}
 {"type":"ack","cmd":"STOP","ok":true}
 {"type":"err","cmd":"TURN_TO","ok":false,"reason":"missing_heading"}
+{"type":"ack","cmd":"SET_LED","ok":true,"color":"green"}
+{"type":"ack","cmd":"PLAY_SOUND","ok":true,"name":"ding_dong"}
+{"type":"ack","cmd":"GET_BUTTONS","ok":true,"button_a_pressed":false,"button_b_pressed":true}
 ```
 
 ### Telemetry example
@@ -85,7 +109,11 @@ Required fields:
   "left_ticks": 1031,
   "right_ticks": 1032,
   "battery_v": 7.5,
-  "fault_code": 0
+  "fault_code": 0,
+  "led_color": "green",
+  "button_a_pressed": false,
+  "button_b_pressed": false,
+  "sound_active": false
 }
 ```
 

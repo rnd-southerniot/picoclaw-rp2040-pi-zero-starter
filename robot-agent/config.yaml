@@ -1,7 +1,7 @@
 transport:
   type: tcp
   tcp:
-    host: rp2040.local
+    host: auto
     port: 8765
     connect_timeout: 3.0
     read_timeout: 1.0
@@ -9,6 +9,15 @@ transport:
     port: /dev/ttyACM0
     baudrate: 115200
     timeout: 1.0
+discovery:
+  enabled: true
+  candidates:
+    - rp2040.local
+    - pico-w.local
+    - picow.local
+  subnet_scan: true
+  subnet_prefix: 192.168.1
+  cache_file: ./logs/discovered_host.txt
 logging:
   telemetry_log: ./logs/telemetry.jsonl
   raw_log: ./logs/raw_link.log
@@ -17,6 +26,7 @@ agent:
   heartbeat_interval_sec: 1.0
   deadman_timeout_sec: 2.0
   reconnect_delay_sec: 2.0
+  default_drive_speed_mps: 0.2
   required_telemetry_fields:
     - time_ms
     - mode
@@ -32,3 +42,6 @@ firmware_reference:
     kd: 0.05
     loop_hz: 20
     target_rpm: 60
+web:
+  host: 0.0.0.0
+  port: 8080

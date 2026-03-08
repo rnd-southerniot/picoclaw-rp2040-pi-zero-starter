@@ -12,8 +12,11 @@ echo "[1/3] Syntax check"
 "$PYTHON_BIN" -m py_compile \
   "$SCRIPT_DIR/protocol.py" \
   "$SCRIPT_DIR/serial_bridge.py" \
+  "$SCRIPT_DIR/discovery.py" \
+  "$SCRIPT_DIR/nl_parser.py" \
   "$SCRIPT_DIR/telemetry_logger.py" \
-  "$SCRIPT_DIR/cli.py"
+  "$SCRIPT_DIR/cli.py" \
+  "$SCRIPT_DIR/web_app.py"
 
 echo "[2/3] Protocol unit tests"
 "$PYTHON_BIN" -m unittest discover -s "$SCRIPT_DIR/tests"
@@ -22,5 +25,8 @@ echo "[3/3] Dry-run command smoke"
 "$PYTHON_BIN" "$SCRIPT_DIR/cli.py" --dry-run PING
 "$PYTHON_BIN" "$SCRIPT_DIR/cli.py" --dry-run GET_STATE
 "$PYTHON_BIN" "$SCRIPT_DIR/cli.py" --dry-run STOP
+"$PYTHON_BIN" "$SCRIPT_DIR/cli.py" --dry-run SET_LED --color green
+"$PYTHON_BIN" "$SCRIPT_DIR/cli.py" --dry-run PLAY_SOUND --name ding_dong
+"$PYTHON_BIN" "$SCRIPT_DIR/cli.py" --dry-run GET_BUTTONS
 
 echo "Smoke test passed (no movement commands executed)."
